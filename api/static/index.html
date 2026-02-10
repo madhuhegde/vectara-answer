@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vectara RAG Query</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Reset & base                                                       */
+    /* ------------------------------------------------------------------ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f7fa;
+      --surface: #ffffff;
+      --border: #e0e4ea;
+      --text: #1e2a3a;
+      --text-secondary: #5a6a7e;
+      --primary: #3b6cf5;
+      --primary-hover: #2b56d4;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-lg: 0 4px 12px rgba(0,0,0,.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Layout                                                             */
+    /* ------------------------------------------------------------------ */
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .main {
+      flex: 1;
+      padding: 32px 40px;
+      overflow-y: auto;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Header                                                             */
+    /* ------------------------------------------------------------------ */
+    .header {
+      margin-bottom: 28px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .corpus-badge {
+      display: inline-block;
+      margin-top: 8px;
+      background: #eef2ff;
+      color: var(--primary);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Form controls                                                      */
+    /* ------------------------------------------------------------------ */
+    .field { display: flex; flex-direction: column; gap: 4px; }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .field input[type="text"],
+    .field input[type="number"],
+    .field select {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color .15s;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,108,245,.15);
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .range-row input[type="range"] {
+      flex: 1;
+      accent-color: var(--primary);
+    }
+
+    .range-value {
+      min-width: 36px;
+      text-align: right;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Query bar                                                          */
+    /* ------------------------------------------------------------------ */
+    .query-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .query-bar input {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      transition: border-color .15s;
+    }
+
+    .query-bar input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,108,245,.15);
+    }
+
+    .btn-primary {
+      padding: 12px 28px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ------------------------------------------------------------------ */
+    /* Results                                                            */
+    /* ------------------------------------------------------------------ */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--danger);
+      padding: 14px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card h3 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .summary-text {
+      font-size: 15px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .fcs-badge {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    .fcs-high   { background: #d1fae5; color: #065f46; }
+    .fcs-medium { background: #fef3c7; color: #92400e; }
+    .fcs-low    { background: #fee2e2; color: #991b1b; }
+
+    .results-heading {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+      transition: box-shadow .15s;
+    }
+
+    .result-card:hover { box-shadow: var(--shadow-lg); }
+
+    .result-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .result-meta .score {
+      background: #eef2ff;
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .result-text {
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .result-text b { color: var(--primary); font-weight: 600; }
+
+    .result-doc-meta {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .result-doc-meta span {
+      margin-right: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: .4;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Responsive                                                         */
+    /* ------------------------------------------------------------------ */
+    @media (max-width: 860px) {
+      .app { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        min-width: unset;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- ============================================================= -->
+    <!-- Sidebar: Configuration                                        -->
+    <!-- ============================================================= -->
+    <aside class="sidebar">
+      <div>
+        <h2>Search Settings</h2>
+      </div>
+
+      <div class="field">
+        <label for="numResults">Search results to retrieve</label>
+        <input type="number" id="numResults" value="10" min="1" max="100" />
+      </div>
+
+      <div class="field">
+        <label for="summaryNumResults">Results used for generation</label>
+        <input type="number" id="summaryNumResults" value="7" min="1" max="50" />
+      </div>
+
+      <div class="field">
+        <label for="responseLang">Response language</label>
+        <select id="responseLang">
+          <option value="auto">Auto-detect</option>
+          <option value="eng" selected>English</option>
+          <option value="deu">German</option>
+          <option value="fra">French</option>
+          <option value="zho">Chinese</option>
+          <option value="jpn">Japanese</option>
+          <option value="kor">Korean</option>
+          <option value="spa">Spanish</option>
+          <option value="por">Portuguese</option>
+          <option value="ita">Italian</option>
+          <option value="rus">Russian</option>
+          <option value="ara">Arabic</option>
+          <option value="hin">Hindi</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Hybrid search lambda</label>
+        <div class="range-row">
+          <input type="range" id="lambdaValue" min="0" max="1" step="0.05" value="0" />
+          <span class="range-value" id="lambdaDisplay">0.00</span>
+        </div>
+        <span class="hint">0 = pure neural &middot; 1 = pure keyword</span>
+      </div>
+
+      <div class="field">
+        <label for="rerankerType">Reranker</label>
+        <select id="rerankerType">
+          <option value="none" selected>None</option>
+          <option value="mmr">MMR (Max Marginal Relevance)</option>
+          <option value="customer_reranker">Slingshot</option>
+        </select>
+      </div>
+
+      <div class="field" id="mmrBiasField" style="display:none;">
+        <label>MMR diversity bias</label>
+        <div class="range-row">
+          <input type="range" id="mmrBias" min="0" max="1" step="0.05" value="0.3" />
+          <span class="range-value" id="mmrBiasDisplay">0.30</span>
+        </div>
+        <span class="hint">0 = relevance-focused &middot; 1 = diversity-focused</span>
+      </div>
+
+      <div>
+        <h2 style="margin-top: 8px;">Generation Settings</h2>
+      </div>
+
+      <div class="field">
+        <label for="promptName">Prompt name (optional)</label>
+        <input type="text" id="promptName" placeholder="e.g. vectara-summary-ext-24-05-sml" />
+      </div>
+
+      <div class="field">
+        <label for="maxChars">Max response characters (optional)</label>
+        <input type="number" id="maxChars" placeholder="No limit" min="1" />
+      </div>
+    </aside>
+
+    <!-- ============================================================= -->
+    <!-- Main: Query + Results                                         -->
+    <!-- ============================================================= -->
+    <main class="main">
+      <div class="header">
+        <h1>Vectara RAG Query</h1>
+        <p>Search and generate answers from your corpus</p>
+        <span class="corpus-badge" id="corpusBadge">Loading...</span>
+      </div>
+
+      <div class="query-bar">
+        <input type="text" id="queryInput" placeholder="Ask a question..." autofocus />
+        <button class="btn-primary" id="submitBtn" onclick="submitQuery()">Search</button>
+      </div>
+
+      <div id="resultsArea">
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <p>Enter a question above to search your corpus</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- JavaScript                                                        -->
+  <!-- ================================================================= -->
+  <script>
+    // ---------------------------------------------------------------
+    // DOM references
+    // ---------------------------------------------------------------
+    const queryInput = document.getElementById("queryInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const resultsArea = document.getElementById("resultsArea");
+    const corpusBadge = document.getElementById("corpusBadge");
+
+    const numResultsEl = document.getElementById("numResults");
+    const summaryNumResultsEl = document.getElementById("summaryNumResults");
+    const responseLangEl = document.getElementById("responseLang");
+    const lambdaValueEl = document.getElementById("lambdaValue");
+    const lambdaDisplayEl = document.getElementById("lambdaDisplay");
+    const rerankerTypeEl = document.getElementById("rerankerType");
+    const mmrBiasFieldEl = document.getElementById("mmrBiasField");
+    const mmrBiasEl = document.getElementById("mmrBias");
+    const mmrBiasDisplayEl = document.getElementById("mmrBiasDisplay");
+    const promptNameEl = document.getElementById("promptName");
+    const maxCharsEl = document.getElementById("maxChars");
+
+    // ---------------------------------------------------------------
+    // Interactive controls
+    // ---------------------------------------------------------------
+    lambdaValueEl.addEventListener("input", () => {
+      lambdaDisplayEl.textContent = parseFloat(lambdaValueEl.value).toFixed(2);
+    });
+
+    mmrBiasEl.addEventListener("input", () => {
+      mmrBiasDisplayEl.textContent = parseFloat(mmrBiasEl.value).toFixed(2);
+    });
+
+    rerankerTypeEl.addEventListener("change", () => {
+      mmrBiasFieldEl.style.display = rerankerTypeEl.value === "mmr" ? "" : "none";
+    });
+
+    queryInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitQuery();
+    });
+
+    // ---------------------------------------------------------------
+    // Fetch corpus config on load
+    // ---------------------------------------------------------------
+    (async function loadConfig() {
+      try {
+        const res = await fetch("/api/config");
+        const data = await res.json();
+        corpusBadge.textContent = "Corpus: " + data.corpus_key;
+      } catch {
+        corpusBadge.textContent = "Corpus: unknown";
+      }
+    })();
+
+    // ---------------------------------------------------------------
+    // Submit query
+    // ---------------------------------------------------------------
+    async function submitQuery() {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      // Build request body from form values
+      const body = {
+        query,
+        num_results: parseInt(numResultsEl.value, 10) || 10,
+        summary_num_results: parseInt(summaryNumResultsEl.value, 10) || 7,
+        response_language: responseLangEl.value,
+        lambda_value: parseFloat(lambdaValueEl.value),
+        reranker_type: rerankerTypeEl.value,
+        mmr_diversity_bias: parseFloat(mmrBiasEl.value),
+      };
+
+      const promptName = promptNameEl.value.trim();
+      if (promptName) body.prompt_name = promptName;
+
+      const maxChars = parseInt(maxCharsEl.value, 10);
+      if (maxChars > 0) body.max_response_characters = maxChars;
+
+      // Show loading state
+      submitBtn.disabled = true;
+      resultsArea.innerHTML = `<div class="loading"><div class="spinner"></div> Searching and generating answer&hellip;</div>`;
+
+      try {
+        const res = await fetch("/api/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        renderResults(data);
+      } catch (err) {
+        resultsArea.innerHTML = `<div class="error-box">Error: ${escapeHtml(err.message)}</div>`;
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Render results
+    // ---------------------------------------------------------------
+    function renderResults(data) {
+      let html = "";
+
+      // Summary card
+      if (data.summary) {
+        let fcsHtml = "";
+        if (data.factual_consistency_score != null && data.factual_consistency_score > 0) {
+          const score = data.factual_consistency_score;
+          const pct = (score * 100).toFixed(1);
+          const cls = score >= 0.7 ? "fcs-high" : score >= 0.4 ? "fcs-medium" : "fcs-low";
+          fcsHtml = `<span class="fcs-badge ${cls}">Factual Consistency: ${pct}%</span>`;
+        }
+
+        html += `
+          <div class="summary-card">
+            <h3>Generated Answer</h3>
+            <div class="summary-text">${escapeHtml(data.summary)}</div>
+            ${fcsHtml}
+          </div>`;
+      }
+
+      // Search results
+      const results = data.search_results || [];
+      if (results.length > 0) {
+        html += `<div class="results-heading">Search Results (${results.length})</div>`;
+        results.forEach((r, i) => {
+          const metaParts = [];
+          if (r.document_metadata) {
+            const meta = r.document_metadata;
+            if (meta.title) metaParts.push(`<span>Title: ${escapeHtml(meta.title)}</span>`);
+            if (meta.url) metaParts.push(`<span><a href="${escapeHtml(meta.url)}" target="_blank" rel="noopener">Source</a></span>`);
+            if (meta.source) metaParts.push(`<span>Source: ${escapeHtml(meta.source)}</span>`);
+          }
+
+          html += `
+            <div class="result-card">
+              <div class="result-meta">
+                <span>#${i + 1}</span>
+                <span class="score">Score: ${r.score.toFixed(4)}</span>
+                <span>Doc: ${escapeHtml(r.document_id)}</span>
+              </div>
+              <div class="result-text">${sanitizeResultText(r.text)}</div>
+              ${metaParts.length ? `<div class="result-doc-meta">${metaParts.join("")}</div>` : ""}
+            </div>`;
+        });
+      } else if (!data.summary) {
+        html = `<div class="empty-state"><p>No results found.</p></div>`;
+      }
+
+      resultsArea.innerHTML = html;
+    }
+
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
+    function escapeHtml(str) {
+      if (!str) return "";
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function sanitizeResultText(text) {
+      if (!text) return "";
+      // Escape everything except <b> and </b> tags (used for highlighting)
+      return escapeHtml(text)
+        .replace(/&lt;b&gt;/g, "<b>")
+        .replace(/&lt;\/b&gt;/g, "</b>");
+    }
+  </script>
+</body>
+</html>
+
