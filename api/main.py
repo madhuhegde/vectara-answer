@@ -49,10 +49,10 @@ class QueryRequest(BaseModel):
 
     query: str
     num_results: int = Field(default=10, ge=1, le=100, description="Number of search results to retrieve")
-    summary_num_results: int = Field(default=7, ge=1, le=50, description="Number of results used for generation")
+    summary_num_results: int = Field(default=6, ge=1, le=50, description="Number of results used for generation")
     response_language: str = Field(default="eng", description="Language code for the generated summary")
-    lambda_value: float = Field(default=0.0, ge=0.0, le=1.0, description="Hybrid search interpolation (0=neural, 1=keyword)")
-    reranker_type: str = Field(default="none", description="Reranker: none, mmr, or customer_reranker")
+    lambda_value: float = Field(default=0.05, ge=0.0, le=1.0, description="Hybrid search interpolation (0=neural, 1=keyword)")
+    reranker_type: str = Field(default="customer_reranker", description="Reranker: none, mmr, or customer_reranker (slingshot)")
     mmr_diversity_bias: float = Field(default=0.3, ge=0.0, le=1.0, description="MMR diversity bias (only when reranker=mmr)")
     prompt_name: Optional[str] = Field(default=None, description="Generation prompt name (optional)")
     max_response_characters: Optional[int] = Field(default=None, ge=1, description="Max characters in generated summary")

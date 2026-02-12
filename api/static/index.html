@@ -358,7 +358,7 @@
 
       <div class="field">
         <label for="summaryNumResults">Results used for generation</label>
-        <input type="number" id="summaryNumResults" value="7" min="1" max="50" />
+        <input type="number" id="summaryNumResults" value="6" min="1" max="50" />
       </div>
 
       <div class="field">
@@ -383,8 +383,8 @@
       <div class="field">
         <label>Hybrid search lambda</label>
         <div class="range-row">
-          <input type="range" id="lambdaValue" min="0" max="1" step="0.05" value="0" />
-          <span class="range-value" id="lambdaDisplay">0.00</span>
+          <input type="range" id="lambdaValue" min="0" max="1" step="0.05" value="0.05" />
+          <span class="range-value" id="lambdaDisplay">0.05</span>
         </div>
         <span class="hint">0 = pure neural &middot; 1 = pure keyword</span>
       </div>
@@ -392,9 +392,9 @@
       <div class="field">
         <label for="rerankerType">Reranker</label>
         <select id="rerankerType">
-          <option value="none" selected>None</option>
+          <option value="none">None</option>
           <option value="mmr">MMR (Max Marginal Relevance)</option>
-          <option value="customer_reranker">Slingshot</option>
+          <option value="customer_reranker" selected>Slingshot</option>
         </select>
       </div>
 
