@@ -381,12 +381,21 @@
       </div>
 
       <div class="field">
-        <label>Hybrid search lambda</label>
-        <div class="range-row">
-          <input type="range" id="lambdaValue" min="0" max="1" step="0.05" value="0.05" />
-          <span class="range-value" id="lambdaDisplay">0.05</span>
-        </div>
+        <label for="lambdaValue">Hybrid search lambda</label>
+        <input type="number" id="lambdaValue" value="0.005" min="0" max="1" step="0.001" />
         <span class="hint">0 = pure neural &middot; 1 = pure keyword</span>
+      </div>
+
+      <div class="field">
+        <label for="sentencesBefore">Context sentences before</label>
+        <input type="number" id="sentencesBefore" value="2" min="0" max="10" />
+        <span class="hint">Sentences to include before the matched chunk</span>
+      </div>
+
+      <div class="field">
+        <label for="sentencesAfter">Context sentences after</label>
+        <input type="number" id="sentencesAfter" value="2" min="0" max="10" />
+        <span class="hint">Sentences to include after the matched chunk</span>
       </div>
 
       <div class="field">
@@ -418,7 +427,16 @@
 
       <div class="field">
         <label for="maxChars">Max response characters (optional)</label>
-        <input type="number" id="maxChars" placeholder="No limit" min="1" />
+        <input type="number" id="maxChars" value="2048" min="1" />
+      </div>
+
+      <div class="field">
+        <label>Temperature</label>
+        <div class="range-row">
+          <input type="range" id="temperature" min="0" max="1" step="0.05" value="0" />
+          <span class="range-value" id="temperatureDisplay">0.00</span>
+        </div>
+        <span class="hint">0 = deterministic &middot; 1 = creative</span>
       </div>
     </aside>
 
@@ -464,27 +482,30 @@
     const summaryNumResultsEl = document.getElementById("summaryNumResults");
     const responseLangEl = document.getElementById("responseLang");
     const lambdaValueEl = document.getElementById("lambdaValue");
-    const lambdaDisplayEl = document.getElementById("lambdaDisplay");
+    const sentencesBeforeEl = document.getElementById("sentencesBefore");
+    const sentencesAfterEl = document.getElementById("sentencesAfter");
     const rerankerTypeEl = document.getElementById("rerankerType");
     const mmrBiasFieldEl = document.getElementById("mmrBiasField");
     const mmrBiasEl = document.getElementById("mmrBias");
     const mmrBiasDisplayEl = document.getElementById("mmrBiasDisplay");
     const promptNameEl = document.getElementById("promptName");
     const maxCharsEl = document.getElementById("maxChars");
+    const temperatureEl = document.getElementById("temperature");
+    const temperatureDisplayEl = document.getElementById("temperatureDisplay");
 
     // ---------------------------------------------------------------
     // Interactive controls
     // ---------------------------------------------------------------
-    lambdaValueEl.addEventListener("input", () => {
-      lambdaDisplayEl.textContent = parseFloat(lambdaValueEl.value).toFixed(2);
-    });
-
     mmrBiasEl.addEventListener("input", () => {
       mmrBiasDisplayEl.textContent = parseFloat(mmrBiasEl.value).toFixed(2);
     });
 
     rerankerTypeEl.addEventListener("change", () => {
       mmrBiasFieldEl.style.display = rerankerTypeEl.value === "mmr" ? "" : "none";
+    });
+
+    temperatureEl.addEventListener("input", () => {
+      temperatureDisplayEl.textContent = parseFloat(temperatureEl.value).toFixed(2);
     });
 
     queryInput.addEventListener("keydown", (e) => {
@@ -518,8 +539,11 @@
         summary_num_results: parseInt(summaryNumResultsEl.value, 10) || 7,
         response_language: responseLangEl.value,
         lambda_value: parseFloat(lambdaValueEl.value),
+        sentences_before: parseInt(sentencesBeforeEl.value, 10) || 2,
+        sentences_after: parseInt(sentencesAfterEl.value, 10) || 2,
         reranker_type: rerankerTypeEl.value,
         mmr_diversity_bias: parseFloat(mmrBiasEl.value),
+        temperature: parseFloat(temperatureEl.value),
       };
 
       const promptName = promptNameEl.value.trim();
